@@ -55,6 +55,8 @@
     const letters = (text.match(/\p{L}/gu) || []).length;
     if (!letters) return true;
     if (targetLang === "中文") {
+      // Japanese kana means it's Japanese (not Chinese) — translate it.
+      if (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text)) return false;
       const han = (text.match(/\p{Script=Han}/gu) || []).length;
       return han / letters > 0.5;
     }
