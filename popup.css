@@ -1,0 +1,90 @@
+body {
+  width: 280px;
+  margin: 0;
+  padding: 14px;
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+h1 {
+  font-size: 15px;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.field {
+  margin-bottom: 10px;
+}
+
+label {
+  display: block;
+  margin-bottom: 3px;
+  font-weight: 600;
+  color: #374151;
+}
+
+input,
+select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.model-row {
+  display: flex;
+  gap: 6px;
+}
+
+.model-row select {
+  flex: 1;
+}
+
+.refresh {
+  width: 34px;
+  flex: 0 0 auto;
+  padding: 6px 0;
+  background: #6b7280;
+  color: #fff;
+  font-size: 15px;
+}
+
+button {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle {
+  background: #2563eb;
+  color: #fff;
+  margin-bottom: 14px;
+}
+
+.toggle.on {
+  background: #dc2626;
+}
+
+.save {
+  background: #10b981;
+  color: #fff;
+  margin-top: 4px;
+}
+
+.status {
+  margin-top: 8px;
+  min-height: 16px;
+  text-align: center;
+  color: #059669;
+}
+
+.status.error {
+  color: #dc2626;
+}

@@ -1,0 +1,16 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+
+# Packaged extension
+*.zip
+*.crx
+*.pem
+
+# Local notes / secrets (never commit API keys)
+.env
+*.local

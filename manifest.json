@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "OcTrans - AI 网页翻译",
+  "version": "1.0.0",
+  "description": "使用 AI API（DeepSeek 等 OpenAI 兼容接口）翻译网页，在原文下方显示译文。",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OcTrans 翻译设置"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

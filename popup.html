@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>OcTrans 翻译</h1>
+
+    <button id="toggle" class="toggle">开启翻译</button>
+
+    <div class="field">
+      <label for="endpoint">API 地址</label>
+      <input id="endpoint" type="text" placeholder="https://api.deepseek.com/chat/completions" />
+    </div>
+
+    <div class="field">
+      <label for="apiKey">API Key</label>
+      <input id="apiKey" type="password" placeholder="sk-..." />
+    </div>
+
+    <div class="field">
+      <label for="model">模型</label>
+      <div class="model-row">
+        <select id="model"></select>
+        <button id="refreshModels" class="refresh" title="获取模型列表">↻</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="mode">翻译模式</label>
+      <select id="mode">
+        <option value="auto">自动翻译全部</option>
+        <option value="button">逐段按钮翻译</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="targetLang">目标语言</label>
+      <select id="targetLang">
+        <option value="中文">中文</option>
+        <option value="English">English</option>
+        <option value="日本語">日本語</option>
+        <option value="한국어">한국어</option>
+        <option value="Français">Français</option>
+        <option value="Deutsch">Deutsch</option>
+        <option value="Español">Español</option>
+      </select>
+    </div>
+
+    <button id="save" class="save">保存设置</button>
+    <div id="status" class="status"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
