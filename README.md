@@ -14,15 +14,20 @@
 - **多厂商通用**:任何 OpenAI 兼容接口均可使用(DeepSeek、OpenAI、Moonshot、通义千问、OpenRouter,以及 Ollama / LM Studio 等本地服务)。
 - **动态页面支持**:通过 MutationObserver 处理无限滚动 / 动态加载的新内容。
 
-## 安装(开发者模式)
+## 安装
 
-1. 下载或克隆本仓库到本地:
-   ```bash
-   git clone https://github.com/Ocfeather/octrans.git
-   ```
-2. 打开 Chrome,访问 `chrome://extensions`。
-3. 打开右上角的**开发者模式**。
-4. 点击**加载已解压的扩展程序**,选择本项目文件夹。
+> 暂未上架 Chrome 网上应用店,目前通过「加载已解压的扩展程序」方式安装。
+
+1. 前往 [Releases 页面](https://github.com/Ocfeather/octrans/releases/latest) 下载安装包 **`octrans.zip`**(或[点此直接下载最新版](https://github.com/Ocfeather/octrans/releases/latest/download/octrans.zip))。
+2. 将 `octrans.zip` **解压**到任意文件夹(解压后文件夹内应能直接看到 `manifest.json`)。
+3. 打开 Chrome,地址栏访问 `chrome://extensions`。
+4. 打开右上角的**开发者模式**。
+5. 点击**加载已解压的扩展程序**,选择第 2 步解压出的文件夹。
+
+> 想跟进最新开发版,也可克隆源码后直接加载该文件夹:
+> ```bash
+> git clone https://github.com/Ocfeather/octrans.git
+> ```
 
 ## 配置
 
