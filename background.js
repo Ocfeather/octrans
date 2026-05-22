@@ -123,10 +123,7 @@ async function listModels(endpointArg, apiKeyArg) {
   return ids.sort();
 }
 
-async function fetchImageAsDataUrl(src) {
-  const resp = await fetch(src);
-  if (!resp.ok) throw new Error(`无法获取图片 (${resp.status})`);
-  const blob = await resp.blob();
+async function blobToDataUrl(blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   let binary = "";
   const chunk = 0x8000;
@@ -135,6 +132,37 @@ async function fetchImageAsDataUrl(src) {
   }
   const mime = blob.type || "image/png";
   return `data:${mime};base64,${btoa(binary)}`;
+}
+
+async function fetchImageAsDataUrl(src) {
+  const resp = await fetch(src);
+  if (!resp.ok) throw new Error(`无法获取图片 (${resp.status})`);
+  const blob = await resp.blob();
+
+  // JPEG/PNG are accepted as-is. Re-encode others (AVIF/WebP/GIF…) to JPEG,
+  // downscaling large images — much faster and far smaller than PNG.
+  if (blob.type === "image/jpeg" || blob.type === "image/png") {
+    return blobToDataUrl(blob);
+  }
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch (e) {
+    throw new Error(`图片格式无法解码 (${blob.type || "未知"})`);
+  }
+  const MAX = 1600;
+  const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff"; // white background for transparent images
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+  const out = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.9 });
+  return blobToDataUrl(out);
 }
 
 async function translateImage(src) {
