@@ -17,6 +17,15 @@ h1 {
   margin-bottom: 10px;
 }
 
+.section {
+  margin: 14px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+}
+
 label {
   display: block;
   margin-bottom: 3px;

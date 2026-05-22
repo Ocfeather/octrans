@@ -31,12 +31,27 @@
       </div>
     </div>
 
+    <div class="section">图片翻译（视觉模型）</div>
+
     <div class="field">
-      <label for="visionModel">图片翻译模型（视觉模型）</label>
-      <div class="combo">
-        <input id="visionModel" placeholder="如 glm-5v-turbo（可手动输入）" />
-        <button type="button" class="combo-toggle" data-for="visionModel">▾</button>
-        <ul class="combo-list" id="visionModelList"></ul>
+      <label for="visionEndpoint">视觉 API 地址</label>
+      <input id="visionEndpoint" type="text" placeholder="留空 = 与上方文本相同" />
+    </div>
+
+    <div class="field">
+      <label for="visionApiKey">视觉 API Key</label>
+      <input id="visionApiKey" type="password" placeholder="留空 = 与上方文本相同" />
+    </div>
+
+    <div class="field">
+      <label for="visionModel">图片翻译模型</label>
+      <div class="model-row">
+        <div class="combo">
+          <input id="visionModel" placeholder="如 glm-5v-turbo（可手动输入）" />
+          <button type="button" class="combo-toggle" data-for="visionModel">▾</button>
+          <ul class="combo-list" id="visionModelList"></ul>
+        </div>
+        <button id="refreshVisionModels" class="refresh" title="获取视觉模型列表">↻</button>
       </div>
     </div>
 

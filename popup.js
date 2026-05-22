@@ -2,6 +2,8 @@ const DEFAULTS = {
   endpoint: "https://api.deepseek.com/chat/completions",
   apiKey: "",
   model: "deepseek-chat",
+  visionEndpoint: "",
+  visionApiKey: "",
   visionModel: "",
   targetLang: "中文",
   mode: "auto",
@@ -23,11 +25,8 @@ function renderToggle(enabled) {
   btn.classList.toggle("on", enabled);
 }
 
-let modelsCache = [];
-
-function populateModels(models) {
-  modelsCache = models; // typed/selected input values are untouched
-}
+let textModels = [];
+let visionModels = [];
 
 function closeAllLists() {
   document.querySelectorAll(".combo-list.open").forEach((l) => l.classList.remove("open"));
@@ -57,13 +56,7 @@ function buildList(inputId, listId, items) {
   list.classList.add("open");
 }
 
-function filtered(input) {
-  const q = input.value.trim().toLowerCase();
-  const matches = modelsCache.filter((m) => m.toLowerCase().includes(q));
-  return matches.length ? matches : modelsCache; // free text → still show all
-}
-
-function setupCombo(inputId, listId) {
+function setupCombo(inputId, listId, getModels) {
   const input = $(inputId);
   const list = $(listId);
   const toggle = document.querySelector(`.combo-toggle[data-for="${inputId}"]`);
@@ -74,14 +67,17 @@ function setupCombo(inputId, listId) {
     const wasOpen = list.classList.contains("open");
     closeAllLists();
     if (!wasOpen) {
-      buildList(inputId, listId, modelsCache); // always full list
+      buildList(inputId, listId, getModels()); // always full list
       input.focus();
     }
   });
 
   input.addEventListener("input", () => {
     closeAllLists();
-    buildList(inputId, listId, filtered(input));
+    const all = getModels();
+    const q = input.value.trim().toLowerCase();
+    const matches = all.filter((m) => m.toLowerCase().includes(q));
+    buildList(inputId, listId, matches.length ? matches : all);
   });
 }
 
@@ -89,9 +85,7 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".combo")) closeAllLists();
 });
 
-function fetchModels(silent = false) {
-  const endpoint = $("endpoint").value.trim() || DEFAULTS.endpoint;
-  const apiKey = $("apiKey").value.trim();
+function fetchModels({ endpoint, apiKey, onModels, silent }) {
   if (!apiKey) {
     if (!silent) setStatus("请先填写 API Key", true);
     return;
@@ -106,11 +100,33 @@ function fetchModels(silent = false) {
       if (!silent) setStatus(`获取失败: ${resp.error}`, true);
       return;
     }
-    populateModels(resp.models);
+    onModels(resp.models);
     if (!silent) {
       setStatus(`已获取 ${resp.models.length} 个模型`);
       setTimeout(() => setStatus(""), 1500);
     }
+  });
+}
+
+function fetchTextModels(silent) {
+  fetchModels({
+    endpoint: $("endpoint").value.trim() || DEFAULTS.endpoint,
+    apiKey: $("apiKey").value.trim(),
+    onModels: (m) => {
+      textModels = m;
+    },
+    silent
+  });
+}
+
+function fetchVisionModels(silent) {
+  fetchModels({
+    endpoint: $("visionEndpoint").value.trim() || $("endpoint").value.trim() || DEFAULTS.endpoint,
+    apiKey: $("visionApiKey").value.trim() || $("apiKey").value.trim(),
+    onModels: (m) => {
+      visionModels = m;
+    },
+    silent
   });
 }
 
@@ -122,18 +138,24 @@ async function load() {
   $("targetLang").value = s.targetLang;
   $("imageEnabled").checked = s.imageEnabled;
   $("model").value = s.model;
+  $("visionEndpoint").value = s.visionEndpoint;
+  $("visionApiKey").value = s.visionApiKey;
   $("visionModel").value = s.visionModel;
   renderToggle(s.enabled);
-  if (s.apiKey) fetchModels(true); // auto-refresh list in background
+  if ($("apiKey").value.trim()) fetchTextModels(true);
+  if ($("visionApiKey").value.trim() || $("apiKey").value.trim()) fetchVisionModels(true);
 }
 
-$("refreshModels").addEventListener("click", () => fetchModels(false));
+$("refreshModels").addEventListener("click", () => fetchTextModels(false));
+$("refreshVisionModels").addEventListener("click", () => fetchVisionModels(false));
 
 $("save").addEventListener("click", async () => {
   await chrome.storage.local.set({
     endpoint: $("endpoint").value.trim() || DEFAULTS.endpoint,
     apiKey: $("apiKey").value.trim(),
     model: $("model").value.trim() || DEFAULTS.model,
+    visionEndpoint: $("visionEndpoint").value.trim(),
+    visionApiKey: $("visionApiKey").value.trim(),
     visionModel: $("visionModel").value.trim(),
     mode: $("mode").value,
     imageEnabled: $("imageEnabled").checked,
@@ -162,6 +184,6 @@ $("toggle").addEventListener("click", async () => {
   }
 });
 
-setupCombo("model", "modelList");
-setupCombo("visionModel", "visionModelList");
+setupCombo("model", "modelList", () => textModels);
+setupCombo("visionModel", "visionModelList", () => visionModels);
 load();

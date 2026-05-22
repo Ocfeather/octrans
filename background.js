@@ -4,6 +4,8 @@ const DEFAULTS = {
   endpoint: "https://api.deepseek.com/chat/completions",
   apiKey: "",
   model: "deepseek-chat",
+  visionEndpoint: "",
+  visionApiKey: "",
   visionModel: "",
   targetLang: "中文",
   mode: "auto",
@@ -136,10 +138,14 @@ async function fetchImageAsDataUrl(src) {
 }
 
 async function translateImage(src) {
-  const { endpoint, apiKey, model, visionModel, targetLang } = await getSettings();
-  if (!apiKey) throw new Error("未设置 API Key，请在插件弹窗中配置。");
+  const s = await getSettings();
+  // Vision can use its own endpoint/key; fall back to the main ones when blank.
+  const vEndpoint = (s.visionEndpoint || "").trim() || s.endpoint;
+  const vKey = (s.visionApiKey || "").trim() || s.apiKey;
+  const visionM = (s.visionModel || "").trim() || s.model;
+  const targetLang = s.targetLang;
+  if (!vKey) throw new Error("未设置 API Key，请在插件弹窗中配置。");
 
-  const visionM = (visionModel || "").trim() || model;
   const dataUrl = src.startsWith("data:") ? src : await fetchImageAsDataUrl(src);
 
   const prompt =
@@ -161,9 +167,9 @@ async function translateImage(src) {
     temperature: 0
   };
 
-  const resp = await fetch(endpoint, {
+  const resp = await fetch(vEndpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${vKey}` },
     body: JSON.stringify(body)
   });
   if (!resp.ok) {
