@@ -48,3 +48,71 @@ button.octrans-btn:disabled {
   cursor: default;
   opacity: 0.4;
 }
+
+button.octrans-img-btn {
+  position: fixed;
+  z-index: 2147483647;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  opacity: 0.9;
+}
+
+button.octrans-img-btn:hover {
+  opacity: 1;
+}
+
+.octrans-img-overlay {
+  position: absolute;
+  z-index: 2147483646;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  overflow: auto;
+  border-radius: 4px;
+}
+
+.octrans-img-overlay.octrans-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+}
+
+.octrans-img-overlay.octrans-error {
+  background: rgba(120, 20, 20, 0.85);
+}
+
+.octrans-img-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.octrans-img-close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 18px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.octrans-img-close:hover {
+  background: rgba(255, 255, 255, 0.4);
+}

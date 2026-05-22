@@ -34,13 +34,90 @@ select {
   font-size: 13px;
 }
 
+.field.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field.check input {
+  width: auto;
+}
+
+.field.check label {
+  margin: 0;
+  font-weight: 400;
+  font-size: 12px;
+}
+
 .model-row {
   display: flex;
   gap: 6px;
 }
 
-.model-row select {
+.combo {
+  position: relative;
   flex: 1;
+}
+
+.combo input {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 26px;
+}
+
+.combo-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.combo-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  display: none;
+}
+
+.combo-list.open {
+  display: block;
+}
+
+.combo-list li {
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.combo-list li:hover {
+  background: #eff6ff;
+}
+
+.combo-list li.empty {
+  color: #9ca3af;
+  cursor: default;
 }
 
 .refresh {

@@ -4,7 +4,10 @@ const DEFAULTS = {
   endpoint: "https://api.deepseek.com/chat/completions",
   apiKey: "",
   model: "deepseek-chat",
+  visionModel: "",
   targetLang: "中文",
+  mode: "auto",
+  imageEnabled: false,
   enabled: false
 };
 
@@ -118,6 +121,59 @@ async function listModels(endpointArg, apiKeyArg) {
   return ids.sort();
 }
 
+async function fetchImageAsDataUrl(src) {
+  const resp = await fetch(src);
+  if (!resp.ok) throw new Error(`无法获取图片 (${resp.status})`);
+  const blob = await resp.blob();
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  const mime = blob.type || "image/png";
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+async function translateImage(src) {
+  const { endpoint, apiKey, model, visionModel, targetLang } = await getSettings();
+  if (!apiKey) throw new Error("未设置 API Key，请在插件弹窗中配置。");
+
+  const visionM = (visionModel || "").trim() || model;
+  const dataUrl = src.startsWith("data:") ? src : await fetchImageAsDataUrl(src);
+
+  const prompt =
+    `Extract all text in this image and translate it into ${targetLang}. ` +
+    `Preserve line breaks. Output only the translated text, no explanations or notes. ` +
+    `If the image contains no text, output an empty string.`;
+
+  const body = {
+    model: visionM,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: dataUrl } }
+        ]
+      }
+    ],
+    temperature: 0
+  };
+
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(`API ${resp.status}: ${detail.slice(0, 300)}`);
+  }
+  const data = await resp.json();
+  return data?.choices?.[0]?.message?.content || "";
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "translate") {
     translateBatch(msg.texts)
@@ -128,6 +184,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "listModels") {
     listModels(msg.endpoint, msg.apiKey)
       .then((models) => sendResponse({ ok: true, models }))
+      .catch((err) => sendResponse({ ok: false, error: err.message || String(err) }));
+    return true; // async response
+  }
+  if (msg?.type === "translateImage") {
+    translateImage(msg.src)
+      .then((text) => sendResponse({ ok: true, text }))
       .catch((err) => sendResponse({ ok: false, error: err.message || String(err) }));
     return true; // async response
   }

@@ -20,11 +20,29 @@
     </div>
 
     <div class="field">
-      <label for="model">模型</label>
+      <label for="model">模型（文本翻译）</label>
       <div class="model-row">
-        <select id="model"></select>
+        <div class="combo">
+          <input id="model" placeholder="deepseek-chat" />
+          <button type="button" class="combo-toggle" data-for="model">▾</button>
+          <ul class="combo-list" id="modelList"></ul>
+        </div>
         <button id="refreshModels" class="refresh" title="获取模型列表">↻</button>
       </div>
+    </div>
+
+    <div class="field">
+      <label for="visionModel">图片翻译模型（视觉模型）</label>
+      <div class="combo">
+        <input id="visionModel" placeholder="如 glm-5v-turbo（可手动输入）" />
+        <button type="button" class="combo-toggle" data-for="visionModel">▾</button>
+        <ul class="combo-list" id="visionModelList"></ul>
+      </div>
+    </div>
+
+    <div class="field check">
+      <input id="imageEnabled" type="checkbox" />
+      <label for="imageEnabled">启用图片翻译（悬停图片显示「译图」按钮）</label>
     </div>
 
     <div class="field">

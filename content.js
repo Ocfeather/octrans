@@ -265,4 +265,120 @@
   chrome.storage.local.get({ enabled: false }, (s) => {
     if (s.enabled) enable();
   });
+
+  // ---------- Image OCR translation (vision model + full-image overlay) ----------
+
+  let imageEnabled = false;
+  let floatBtn = null;
+  let hoverImg = null;
+
+  function eligibleImg(el) {
+    return (
+      el &&
+      el.tagName === "IMG" &&
+      el.naturalWidth >= 80 &&
+      el.naturalHeight >= 80
+    );
+  }
+
+  function ensureFloatBtn() {
+    if (floatBtn) return floatBtn;
+    floatBtn = document.createElement("button");
+    floatBtn.className = "octrans-img-btn";
+    floatBtn.type = "button";
+    floatBtn.textContent = "译图";
+    floatBtn.title = "识别并翻译图片中的文字";
+    floatBtn.style.display = "none";
+    floatBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (hoverImg) translateImage(hoverImg);
+    });
+    document.body.appendChild(floatBtn);
+    return floatBtn;
+  }
+
+  function showOverlay(img, text, loading) {
+    const r = img.getBoundingClientRect();
+    const ov = document.createElement("div");
+    ov.className = "octrans-img-overlay" + (loading ? " octrans-loading" : "");
+    ov.style.left = `${r.left + window.scrollX}px`;
+    ov.style.top = `${r.top + window.scrollY}px`;
+    ov.style.width = `${r.width}px`;
+    ov.style.height = `${r.height}px`;
+
+    const close = document.createElement("button");
+    close.className = "octrans-img-close";
+    close.type = "button";
+    close.textContent = "×";
+    close.title = "关闭";
+    close.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      ov.remove();
+    });
+
+    const inner = document.createElement("div");
+    inner.className = "octrans-img-text";
+    inner.textContent = text;
+
+    ov.appendChild(close);
+    ov.appendChild(inner);
+    document.body.appendChild(ov);
+    return { ov, inner };
+  }
+
+  async function translateImage(img) {
+    if (floatBtn) floatBtn.style.display = "none";
+    const src = img.currentSrc || img.src;
+    if (!src) return;
+    const { ov, inner } = showOverlay(img, "识别翻译中…", true);
+    const resp = await new Promise((res) => {
+      chrome.runtime.sendMessage({ type: "translateImage", src }, (r) => {
+        res(chrome.runtime.lastError ? { ok: false, error: chrome.runtime.lastError.message } : r);
+      });
+    });
+    ov.classList.remove("octrans-loading");
+    if (resp && resp.ok) {
+      inner.textContent = resp.text && resp.text.trim() ? resp.text : "(未识别到文字)";
+    } else {
+      ov.classList.add("octrans-error");
+      inner.textContent = `翻译失败: ${resp ? resp.error : "无响应"}`;
+    }
+  }
+
+  function onImgOver(e) {
+    if (!imageEnabled) return;
+    if (eligibleImg(e.target)) {
+      hoverImg = e.target;
+      const b = ensureFloatBtn();
+      const r = e.target.getBoundingClientRect();
+      b.style.left = `${r.left + 6}px`;
+      b.style.top = `${r.top + 6}px`;
+      b.style.display = "block";
+    }
+  }
+
+  function onImgOut(e) {
+    if (!floatBtn) return;
+    if (e.relatedTarget === floatBtn) return; // moving onto the button itself
+    if (eligibleImg(e.target)) floatBtn.style.display = "none";
+  }
+
+  document.addEventListener("mouseover", onImgOver, true);
+  document.addEventListener("mouseout", onImgOut, true);
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (floatBtn) floatBtn.style.display = "none";
+    },
+    true
+  );
+
+  chrome.storage.local.get({ imageEnabled: false }, (s) => {
+    imageEnabled = s.imageEnabled;
+  });
+  chrome.storage.onChanged.addListener((ch, area) => {
+    if (area === "local" && ch.imageEnabled) imageEnabled = ch.imageEnabled.newValue;
+  });
 })();

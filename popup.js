@@ -2,8 +2,10 @@ const DEFAULTS = {
   endpoint: "https://api.deepseek.com/chat/completions",
   apiKey: "",
   model: "deepseek-chat",
+  visionModel: "",
   targetLang: "中文",
   mode: "auto",
+  imageEnabled: false,
   enabled: false
 };
 
@@ -21,19 +23,71 @@ function renderToggle(enabled) {
   btn.classList.toggle("on", enabled);
 }
 
-function populateModels(models, selected) {
-  const sel = $("model");
-  const list = models.slice();
-  if (selected && !list.includes(selected)) list.unshift(selected);
-  sel.innerHTML = "";
-  list.forEach((id) => {
-    const o = document.createElement("option");
-    o.value = id;
-    o.textContent = id;
-    if (id === selected) o.selected = true;
-    sel.appendChild(o);
+let modelsCache = [];
+
+function populateModels(models) {
+  modelsCache = models; // typed/selected input values are untouched
+}
+
+function closeAllLists() {
+  document.querySelectorAll(".combo-list.open").forEach((l) => l.classList.remove("open"));
+}
+
+function buildList(inputId, listId, items) {
+  const input = $(inputId);
+  const list = $(listId);
+  list.innerHTML = "";
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "（暂无模型，可直接在框内输入）";
+    list.appendChild(li);
+  } else {
+    items.forEach((m) => {
+      const li = document.createElement("li");
+      li.textContent = m;
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault(); // fire before input blur
+        input.value = m;
+        list.classList.remove("open");
+      });
+      list.appendChild(li);
+    });
+  }
+  list.classList.add("open");
+}
+
+function filtered(input) {
+  const q = input.value.trim().toLowerCase();
+  const matches = modelsCache.filter((m) => m.toLowerCase().includes(q));
+  return matches.length ? matches : modelsCache; // free text → still show all
+}
+
+function setupCombo(inputId, listId) {
+  const input = $(inputId);
+  const list = $(listId);
+  const toggle = document.querySelector(`.combo-toggle[data-for="${inputId}"]`);
+
+  toggle.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasOpen = list.classList.contains("open");
+    closeAllLists();
+    if (!wasOpen) {
+      buildList(inputId, listId, modelsCache); // always full list
+      input.focus();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    closeAllLists();
+    buildList(inputId, listId, filtered(input));
   });
 }
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".combo")) closeAllLists();
+});
 
 function fetchModels(silent = false) {
   const endpoint = $("endpoint").value.trim() || DEFAULTS.endpoint;
@@ -52,7 +106,7 @@ function fetchModels(silent = false) {
       if (!silent) setStatus(`获取失败: ${resp.error}`, true);
       return;
     }
-    populateModels(resp.models, $("model").value || DEFAULTS.model);
+    populateModels(resp.models);
     if (!silent) {
       setStatus(`已获取 ${resp.models.length} 个模型`);
       setTimeout(() => setStatus(""), 1500);
@@ -66,7 +120,9 @@ async function load() {
   $("apiKey").value = s.apiKey;
   $("mode").value = s.mode;
   $("targetLang").value = s.targetLang;
-  populateModels([], s.model); // show saved model immediately
+  $("imageEnabled").checked = s.imageEnabled;
+  $("model").value = s.model;
+  $("visionModel").value = s.visionModel;
   renderToggle(s.enabled);
   if (s.apiKey) fetchModels(true); // auto-refresh list in background
 }
@@ -78,7 +134,9 @@ $("save").addEventListener("click", async () => {
     endpoint: $("endpoint").value.trim() || DEFAULTS.endpoint,
     apiKey: $("apiKey").value.trim(),
     model: $("model").value.trim() || DEFAULTS.model,
+    visionModel: $("visionModel").value.trim(),
     mode: $("mode").value,
+    imageEnabled: $("imageEnabled").checked,
     targetLang: $("targetLang").value
   });
   setStatus("已保存 ✓");
@@ -104,4 +162,6 @@ $("toggle").addEventListener("click", async () => {
   }
 });
 
+setupCombo("model", "modelList");
+setupCombo("visionModel", "visionModelList");
 load();
