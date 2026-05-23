@@ -116,3 +116,32 @@ button.octrans-img-btn:hover {
 .octrans-img-close:hover {
   background: rgba(255, 255, 255, 0.4);
 }
+
+.octrans-capture-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  cursor: crosshair;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.octrans-capture-sel {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px dashed #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.octrans-capture-hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 16px;
+  pointer-events: none;
+}

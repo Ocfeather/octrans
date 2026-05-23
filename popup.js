@@ -184,6 +184,15 @@ $("toggle").addEventListener("click", async () => {
   }
 });
 
+$("capture").addEventListener("click", async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  chrome.runtime.sendMessage({ type: "requestCapture", tabId: tab.id }, (r) => {
+    if (chrome.runtime.lastError || !r?.ok) setStatus("无法在此页面截图", true);
+    else window.close();
+  });
+});
+
 setupCombo("model", "modelList", () => textModels);
 setupCombo("visionModel", "visionModelList", () => visionModels);
 load();

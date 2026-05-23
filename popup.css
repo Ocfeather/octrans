@@ -158,6 +158,12 @@ button {
   background: #dc2626;
 }
 
+.capture {
+  background: #7c3aed;
+  color: #fff;
+  margin-bottom: 14px;
+}
+
 .save {
   background: #10b981;
   color: #fff;

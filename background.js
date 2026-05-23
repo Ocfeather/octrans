@@ -208,6 +208,24 @@ async function translateImage(src) {
   return data?.choices?.[0]?.message?.content || "";
 }
 
+// Tell a tab to start region selection; inject the content script first if it isn't loaded yet
+// (e.g. the page was already open before the extension was installed/updated).
+async function startCaptureOnTab(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "startCapture" });
+  } catch (e) {
+    await chrome.scripting.insertCSS({ target: { tabId }, files: ["content.css"] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+    await chrome.tabs.sendMessage(tabId, { type: "startCapture" });
+  }
+}
+
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "capture-translate") return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) startCaptureOnTab(tab.id).catch(() => {});
+});
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "translate") {
     translateBatch(msg.texts)
@@ -224,6 +242,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "translateImage") {
     translateImage(msg.src)
       .then((text) => sendResponse({ ok: true, text }))
+      .catch((err) => sendResponse({ ok: false, error: err.message || String(err) }));
+    return true; // async response
+  }
+  if (msg?.type === "requestCapture") {
+    startCaptureOnTab(msg.tabId)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: err.message || String(err) }));
+    return true; // async response
+  }
+  if (msg?.type === "captureTab") {
+    const windowId = _sender.tab?.windowId;
+    chrome.tabs
+      .captureVisibleTab(windowId, { format: "jpeg", quality: 92 })
+      .then((dataUrl) => sendResponse({ ok: true, dataUrl }))
       .catch((err) => sendResponse({ ok: false, error: err.message || String(err) }));
     return true; // async response
   }

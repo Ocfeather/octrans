@@ -1,6 +1,9 @@
 // OcTrans content script — groups visible text by block, requests translation, injects it below.
 
 (() => {
+  if (window.__octransContentLoaded) return;
+  window.__octransContentLoaded = true;
+
   const DONE_ATTR = "data-octrans-done";
   const TRANS_CLASS = "octrans-translation";
   const MAX_CHARS_PER_BATCH = 3000;
@@ -260,6 +263,9 @@
       sendResponse({ ok: true });
     } else if (msg?.type === "status") {
       sendResponse({ running });
+    } else if (msg?.type === "startCapture") {
+      startScreenshotCapture();
+      sendResponse({ ok: true });
     }
     return true;
   });
@@ -302,12 +308,20 @@
 
   function showOverlay(img, text, loading) {
     const r = img.getBoundingClientRect();
+    return showOverlayAt(
+      { left: r.left, top: r.top, width: r.width, height: r.height },
+      text,
+      loading
+    );
+  }
+
+  function showOverlayAt(vRect, text, loading) {
     const ov = document.createElement("div");
     ov.className = "octrans-img-overlay" + (loading ? " octrans-loading" : "");
-    ov.style.left = `${r.left + window.scrollX}px`;
-    ov.style.top = `${r.top + window.scrollY}px`;
-    ov.style.width = `${r.width}px`;
-    ov.style.height = `${r.height}px`;
+    ov.style.left = `${vRect.left + window.scrollX}px`;
+    ov.style.top = `${vRect.top + window.scrollY}px`;
+    ov.style.width = `${vRect.width}px`;
+    ov.style.height = `${vRect.height}px`;
 
     const close = document.createElement("button");
     close.className = "octrans-img-close";
@@ -383,4 +397,132 @@
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area === "local" && ch.imageEnabled) imageEnabled = ch.imageEnabled.newValue;
   });
+
+  // ---------- Screenshot region translation (works for video / canvas frames) ----------
+
+  function startScreenshotCapture() {
+    if (document.querySelector(".octrans-capture-layer")) return;
+    const layer = document.createElement("div");
+    layer.className = "octrans-capture-layer";
+    const sel = document.createElement("div");
+    sel.className = "octrans-capture-sel";
+    sel.style.display = "none";
+    const hint = document.createElement("div");
+    hint.className = "octrans-capture-hint";
+    hint.textContent = "拖动框选要翻译的区域，按 Esc 取消";
+    layer.appendChild(sel);
+    layer.appendChild(hint);
+    document.body.appendChild(layer);
+
+    let startX = 0;
+    let startY = 0;
+    let dragging = false;
+
+    function onDown(e) {
+      if (e.button !== 0) return;
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      sel.style.left = `${startX}px`;
+      sel.style.top = `${startY}px`;
+      sel.style.width = "0px";
+      sel.style.height = "0px";
+      sel.style.display = "block";
+      e.preventDefault();
+    }
+    function onMove(e) {
+      if (!dragging) return;
+      sel.style.left = `${Math.min(e.clientX, startX)}px`;
+      sel.style.top = `${Math.min(e.clientY, startY)}px`;
+      sel.style.width = `${Math.abs(e.clientX - startX)}px`;
+      sel.style.height = `${Math.abs(e.clientY - startY)}px`;
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      const vRect = {
+        left: parseFloat(sel.style.left),
+        top: parseFloat(sel.style.top),
+        width: parseFloat(sel.style.width),
+        height: parseFloat(sel.style.height)
+      };
+      cleanup();
+      if (vRect.width >= 8 && vRect.height >= 8) captureAndTranslate(vRect);
+    }
+    function onKey(e) {
+      if (e.key === "Escape") cleanup();
+    }
+    function cleanup() {
+      layer.removeEventListener("mousedown", onDown);
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("mouseup", onUp, true);
+      document.removeEventListener("keydown", onKey, true);
+      layer.remove();
+    }
+
+    layer.addEventListener("mousedown", onDown);
+    document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("mouseup", onUp, true);
+    document.addEventListener("keydown", onKey, true);
+  }
+
+  function cropDataUrl(dataUrl, vRect) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const dpr = window.devicePixelRatio || 1;
+        const sw = Math.max(1, Math.round(vRect.width * dpr));
+        const sh = Math.max(1, Math.round(vRect.height * dpr));
+        const canvas = document.createElement("canvas");
+        canvas.width = sw;
+        canvas.height = sh;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, vRect.left * dpr, vRect.top * dpr, sw, sh, 0, 0, sw, sh);
+        resolve(canvas.toDataURL("image/jpeg", 0.92));
+      };
+      img.onerror = () => reject(new Error("截图解码失败"));
+      img.src = dataUrl;
+    });
+  }
+
+  async function captureAndTranslate(vRect) {
+    // Let the selection layer clear from the painted frame before capturing.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const cap = await new Promise((res) => {
+      chrome.runtime.sendMessage({ type: "captureTab" }, (r) =>
+        res(chrome.runtime.lastError ? { ok: false, error: chrome.runtime.lastError.message } : r)
+      );
+    });
+
+    const { ov, inner } = showOverlayAt(vRect, "识别翻译中…", true);
+    if (!cap || !cap.ok) {
+      ov.classList.remove("octrans-loading");
+      ov.classList.add("octrans-error");
+      inner.textContent = `截图失败: ${cap ? cap.error : "无响应"}`;
+      return;
+    }
+
+    let dataUrl;
+    try {
+      dataUrl = await cropDataUrl(cap.dataUrl, vRect);
+    } catch (e) {
+      ov.classList.remove("octrans-loading");
+      ov.classList.add("octrans-error");
+      inner.textContent = `裁剪失败: ${e.message}`;
+      return;
+    }
+
+    const resp = await new Promise((res) => {
+      chrome.runtime.sendMessage({ type: "translateImage", src: dataUrl }, (r) =>
+        res(chrome.runtime.lastError ? { ok: false, error: chrome.runtime.lastError.message } : r)
+      );
+    });
+    ov.classList.remove("octrans-loading");
+    if (resp && resp.ok) {
+      inner.textContent = resp.text && resp.text.trim() ? resp.text : "(未识别到文字)";
+    } else {
+      ov.classList.add("octrans-error");
+      inner.textContent = `翻译失败: ${resp ? resp.error : "无响应"}`;
+    }
+  }
 })();
