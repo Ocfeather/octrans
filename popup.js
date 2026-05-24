@@ -8,6 +8,7 @@ const DEFAULTS = {
   targetLang: "中文",
   mode: "auto",
   imageEnabled: false,
+  captureEnabled: true,
   enabled: false
 };
 
@@ -130,6 +131,10 @@ function fetchVisionModels(silent) {
   });
 }
 
+function renderCapture(enabled) {
+  $("capture").disabled = !enabled;
+}
+
 async function load() {
   const s = await chrome.storage.local.get(DEFAULTS);
   $("endpoint").value = s.endpoint;
@@ -137,14 +142,34 @@ async function load() {
   $("mode").value = s.mode;
   $("targetLang").value = s.targetLang;
   $("imageEnabled").checked = s.imageEnabled;
+  $("captureEnabled").checked = s.captureEnabled;
   $("model").value = s.model;
   $("visionEndpoint").value = s.visionEndpoint;
   $("visionApiKey").value = s.visionApiKey;
   $("visionModel").value = s.visionModel;
   renderToggle(s.enabled);
+  renderCapture(s.captureEnabled);
   if ($("apiKey").value.trim()) fetchTextModels(true);
   if ($("visionApiKey").value.trim() || $("apiKey").value.trim()) fetchVisionModels(true);
 }
+
+$("captureEnabled").addEventListener("change", () => {
+  renderCapture($("captureEnabled").checked);
+});
+
+// 切换翻译模式立即生效：存储 + 通知当前页重渲染（已翻内容走缓存，不重复请求）
+$("mode").addEventListener("change", async () => {
+  const mode = $("mode").value;
+  await chrome.storage.local.set({ mode });
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) {
+    chrome.tabs.sendMessage(tab.id, { type: "setMode", mode }, () => {
+      if (chrome.runtime.lastError) return; // 翻译未开启或页面未注入，存储已更新，下次开启生效
+      setStatus(mode === "auto" ? "已切换为全部翻译" : "已切换为逐段按钮");
+      setTimeout(() => setStatus(""), 1500);
+    });
+  }
+});
 
 $("refreshModels").addEventListener("click", () => fetchTextModels(false));
 $("refreshVisionModels").addEventListener("click", () => fetchVisionModels(false));
@@ -159,6 +184,7 @@ $("save").addEventListener("click", async () => {
     visionModel: $("visionModel").value.trim(),
     mode: $("mode").value,
     imageEnabled: $("imageEnabled").checked,
+    captureEnabled: $("captureEnabled").checked,
     targetLang: $("targetLang").value
   });
   setStatus("已保存 ✓");

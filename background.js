@@ -10,6 +10,7 @@ const DEFAULTS = {
   targetLang: "中文",
   mode: "auto",
   imageEnabled: false,
+  captureEnabled: true,
   enabled: false
 };
 
@@ -222,6 +223,8 @@ async function startCaptureOnTab(tabId) {
 
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== "capture-translate") return;
+  const { captureEnabled } = await chrome.storage.local.get({ captureEnabled: true });
+  if (!captureEnabled) return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) startCaptureOnTab(tab.id).catch(() => {});
 });
@@ -246,9 +249,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // async response
   }
   if (msg?.type === "requestCapture") {
-    startCaptureOnTab(msg.tabId)
-      .then(() => sendResponse({ ok: true }))
-      .catch((err) => sendResponse({ ok: false, error: err.message || String(err) }));
+    chrome.storage.local.get({ captureEnabled: true }, ({ captureEnabled }) => {
+      if (!captureEnabled) {
+        sendResponse({ ok: false, error: "截图翻译已禁用" });
+        return;
+      }
+      startCaptureOnTab(msg.tabId)
+        .then(() => sendResponse({ ok: true }))
+        .catch((err) => sendResponse({ ok: false, error: err.message || String(err) }));
+    });
     return true; // async response
   }
   if (msg?.type === "captureTab") {

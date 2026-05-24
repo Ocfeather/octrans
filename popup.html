@@ -9,7 +9,13 @@
 
     <button id="toggle" class="toggle">开启翻译</button>
 
-    <button id="capture" class="capture">截图翻译（框选区域 / 视频）</button>
+    <div class="capture-row">
+      <button id="capture" class="capture">截图翻译（框选区域 / 视频）</button>
+      <label class="capture-toggle" title="关闭后截图翻译按钮和 Alt+Shift+S 均不生效">
+        <input id="captureEnabled" type="checkbox" />
+        启用
+      </label>
+    </div>
 
     <div class="field">
       <label for="endpoint">API 地址</label>

@@ -158,10 +158,45 @@ button {
   background: #dc2626;
 }
 
+.capture-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.capture-row .capture {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.capture-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 400;
+  color: #6b7280;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.capture-toggle input {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
 .capture {
   background: #7c3aed;
   color: #fff;
-  margin-bottom: 14px;
+}
+
+.capture:disabled {
+  background: #c4b5fd;
+  cursor: not-allowed;
 }
 
 .save {

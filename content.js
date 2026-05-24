@@ -25,6 +25,7 @@
   let observer = null;
   let targetLang = "中文";
   let mode = "auto"; // "auto" | "button"
+  const transCache = new Map(); // 源文 -> 译文，模式切换/重渲染时复用，避免重复请求
 
   function isBlock(el) {
     if (!el || el.nodeType !== 1) return false;
@@ -70,8 +71,8 @@
     return false;
   }
 
-  function collectUnits() {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+  function collectUnits(root = document.body) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         const v = node.nodeValue;
         if (!v || !v.trim() || !/\p{L}/u.test(v)) return NodeFilter.FILTER_REJECT;
@@ -86,6 +87,7 @@
     let n;
     while ((n = walker.nextNode())) {
       const block = nearestBlock(n.parentElement);
+      if (root !== document.body && !root.contains(block)) continue; // 限定在新增子树内
       if (!groups.has(block)) groups.set(block, []);
       groups.get(block).push(n);
     }
@@ -146,6 +148,7 @@
           if (resp.ok) {
             const t = resp.translations[i];
             if (t && t.trim()) {
+              transCache.set(item.text, t);
               item.node.classList.remove("octrans-loading");
               item.node.classList.add("octrans-done");
               item.node.textContent = t;
@@ -166,12 +169,19 @@
   }
 
   async function translateOne(block, text, btn) {
+    const cached = transCache.get(text);
+    if (cached) {
+      block.appendChild(makeTransNode("done", cached));
+      btn.remove();
+      return;
+    }
     btn.disabled = true;
     btn.textContent = "…";
     const node = makeTransNode("loading", "翻译中…");
     block.appendChild(node);
     const resp = await requestTranslation([text]);
     if (resp.ok && resp.translations[0] && resp.translations[0].trim()) {
+      transCache.set(text, resp.translations[0]);
       node.classList.remove("octrans-loading");
       node.classList.add("octrans-done");
       node.textContent = resp.translations[0];
@@ -208,13 +218,19 @@
       return;
     }
 
-    const items = units.map((u) => {
+    const items = [];
+    units.forEach((u) => {
       u.block.setAttribute(DONE_ATTR, "1");
-      const node = makeTransNode("loading", "翻译中…");
-      u.block.appendChild(node);
-      return { node, text: u.text };
+      const cached = transCache.get(u.text);
+      if (cached) {
+        u.block.appendChild(makeTransNode("done", cached));
+      } else {
+        const node = makeTransNode("loading", "翻译中…");
+        u.block.appendChild(node);
+        items.push({ node, text: u.text });
+      }
     });
-    await runPool(chunk(items));
+    if (items.length) await runPool(chunk(items));
   }
 
   function removeTranslations() {
@@ -222,11 +238,30 @@
     document.querySelectorAll(`[${DONE_ATTR}]`).forEach((el) => el.removeAttribute(DONE_ATTR));
   }
 
+  // 即时把缓存中的译文补回新增子树里命中的段落（同步、不防抖、不请求 API）。
+  // 用于虚拟列表/懒渲染页面：段落滚出视口被回收、滚回时重新渲染，立刻恢复译文避免闪烁。
+  function reapplyCached(root) {
+    for (const u of collectUnits(root)) {
+      const cached = transCache.get(u.text);
+      if (cached) {
+        u.block.setAttribute(DONE_ATTR, "1");
+        u.block.appendChild(makeTransNode("done", cached));
+      }
+    }
+  }
+
   function startObserver() {
     if (observer) return;
     let timer = null;
-    observer = new MutationObserver(() => {
+    observer = new MutationObserver((mutations) => {
       if (!running) return;
+      // 轻量即时路径：对新增子树，命中缓存的段落立刻补回译文（避免回收重渲染时的闪烁）
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType === 1) reapplyCached(node);
+        }
+      }
+      // 完整路径（防抖）：翻译尚未缓存的新内容
       clearTimeout(timer);
       timer = setTimeout(() => running && translatePage(), 800);
     });
@@ -246,14 +281,26 @@
     const s = await chrome.storage.local.get({ targetLang: "中文", mode: "auto" });
     targetLang = s.targetLang;
     mode = s.mode;
-    await translatePage();
+    // 先启动 observer 再翻译：auto 模式下初始批量翻译会阻塞数秒，
+    // 期间页面加载/渲染出的内容必须被捕获，否则只会翻译最初的一小部分。
     startObserver();
+    await translatePage();
   }
 
   function disable() {
     running = false;
     stopObserver();
     removeTranslations();
+  }
+
+  // 即时切换模式：清掉当前译文/按钮，用新模式重渲染。缓存保留，已翻段落不再请求。
+  async function setMode(newMode) {
+    if (newMode !== "auto" && newMode !== "button") return;
+    if (mode === newMode) return;
+    mode = newMode;
+    if (!running) return;
+    removeTranslations();
+    await translatePage();
   }
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -263,6 +310,9 @@
       sendResponse({ ok: true });
     } else if (msg?.type === "status") {
       sendResponse({ running });
+    } else if (msg?.type === "setMode") {
+      setMode(msg.mode);
+      sendResponse({ ok: true });
     } else if (msg?.type === "startCapture") {
       startScreenshotCapture();
       sendResponse({ ok: true });
